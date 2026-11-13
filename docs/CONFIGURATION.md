@@ -80,4 +80,4 @@ Deferred flags (Phase 7: `--template`, `--hotreload`, `--secure`, `--cert`, `--k
 
 ### `[ui]` and `[auth]` (Active in Phase 6)
 - `[ui]`: `enabled` (default `false`), `bind` (default `"127.0.0.1"`, must be non-empty), `path_prefix` (default `"/ui"`, must start with `'/'`).
-- `[auth]`: `admin_token_env` (env var holding bearer token), `admin_token_file` (file holding bearer token; specify at most one of the two). When `[ui].enabled = true`, auth configuration is mandatory.
+- `[auth]`: `admin_token` (direct literal token value in config), `admin_token_env` (env var holding bearer token, or file path), `admin_token_file` (file holding bearer token; specify at most one of the three). When `[ui].enabled = true`, auth configuration is mandatory.

@@ -221,6 +221,8 @@ impl Default for UiConfig {
 #[serde(deny_unknown_fields)]
 pub struct AuthConfig {
     #[serde(default)]
+    pub admin_token: Option<String>,
+    #[serde(default)]
     pub admin_token_env: Option<String>,
     #[serde(default)]
     pub admin_token_file: Option<PathBuf>,
@@ -229,21 +231,41 @@ pub struct AuthConfig {
 impl AuthConfig {
     #[must_use]
     pub fn is_configured(&self) -> bool {
-        self.admin_token_env.is_some() || self.admin_token_file.is_some()
+        self.admin_token.is_some()
+            || self.admin_token_env.is_some()
+            || self.admin_token_file.is_some()
     }
 
-    /// Resolves the admin token from the configured environment variable or file.
+    /// Resolves the admin token from literal config, environment variable, or file.
     ///
-    /// Precedence: `admin_token_env` is checked first. If set and non-empty, its value is used.
-    /// Otherwise, if `admin_token_file` is set, the file contents are read and trimmed.
-    /// Returns `Ok(None)` if neither is configured or if the configured source is empty.
+    /// Precedence:
+    /// 1. `admin_token`: literal token value directly in configuration.
+    /// 2. `admin_token_env`: environment variable name. If not present in env, falls back to
+    ///    reading as a file path if it points to an existing file.
+    /// 3. `admin_token_file`: file path whose contents are read and trimmed.
+    ///
+    /// Returns `Ok(None)` if unconfigured or if the configured source resolves to empty.
     pub fn resolve_admin_token(&self) -> Result<Option<String>, std::io::Error> {
-        if let Some(env_var) = &self.admin_token_env
-            && let Ok(val) = std::env::var(env_var)
-        {
-            let trimmed = val.trim().to_string();
+        if let Some(token) = &self.admin_token {
+            let trimmed = token.trim().to_string();
             if !trimmed.is_empty() {
                 return Ok(Some(trimmed));
+            }
+        }
+        if let Some(env_or_path) = &self.admin_token_env {
+            if let Ok(val) = std::env::var(env_or_path) {
+                let trimmed = val.trim().to_string();
+                if !trimmed.is_empty() {
+                    return Ok(Some(trimmed));
+                }
+            }
+            let path = Path::new(env_or_path);
+            if path.is_file() {
+                let content = std::fs::read_to_string(path)?;
+                let trimmed = content.trim().to_string();
+                if !trimmed.is_empty() {
+                    return Ok(Some(trimmed));
+                }
             }
         }
         if let Some(path) = &self.admin_token_file {
@@ -408,6 +430,14 @@ impl AppConfig {
             ));
         }
 
+        if let Some(token) = &self.auth.admin_token
+            && token.trim().is_empty()
+        {
+            return Err(ConfigError::validation(
+                "auth.admin_token",
+                "must not be empty",
+            ));
+        }
         if let Some(env_name) = &self.auth.admin_token_env
             && env_name.trim().is_empty()
         {
@@ -424,16 +454,24 @@ impl AppConfig {
                 "must not be empty",
             ));
         }
-        if self.auth.admin_token_env.is_some() && self.auth.admin_token_file.is_some() {
+        let auth_sources = [
+            self.auth.admin_token.is_some(),
+            self.auth.admin_token_env.is_some(),
+            self.auth.admin_token_file.is_some(),
+        ]
+        .iter()
+        .filter(|&&configured| configured)
+        .count();
+        if auth_sources > 1 {
             return Err(ConfigError::validation(
                 "auth",
-                "specify at most one of admin_token_env or admin_token_file",
+                "specify at most one of admin_token, admin_token_env, or admin_token_file",
             ));
         }
         if self.ui.enabled && !self.auth.is_configured() {
             return Err(ConfigError::validation(
                 "auth",
-                "ui.enabled = true requires auth.admin_token_env or auth.admin_token_file",
+                "ui.enabled = true requires auth.admin_token, auth.admin_token_env, or auth.admin_token_file",
             ));
         }
 
@@ -781,14 +819,26 @@ url = "rediss://default:supersecret@valkey.internal:6379"
     }
 
     #[test]
-    fn resolves_admin_token_from_env_or_file() {
+    fn resolves_admin_token_from_literal_env_or_file() {
         let auth_none = AuthConfig::default();
         assert_eq!(auth_none.resolve_admin_token().unwrap(), None);
+
+        // Literal token resolution
+        let auth_literal = AuthConfig {
+            admin_token: Some("  literal-secret-token  ".into()),
+            admin_token_env: None,
+            admin_token_file: None,
+        };
+        assert_eq!(
+            auth_literal.resolve_admin_token().unwrap(),
+            Some("literal-secret-token".into())
+        );
 
         // Env var resolution
         let var_name = "WEBHOOK_ASYNC_TEST_TOKEN_XYZ";
         unsafe { std::env::set_var(var_name, "  super-secret-token  ") };
         let auth_env = AuthConfig {
+            admin_token: None,
             admin_token_env: Some(var_name.into()),
             admin_token_file: None,
         };
@@ -798,15 +848,27 @@ url = "rediss://default:supersecret@valkey.internal:6379"
         );
         unsafe { std::env::remove_var(var_name) };
 
-        // File resolution
+        // File resolution via admin_token_file
         let tmp = tempfile::NamedTempFile::new().expect("temp file");
         std::fs::write(tmp.path(), "  file-secret-token \n").expect("write token");
         let auth_file = AuthConfig {
+            admin_token: None,
             admin_token_env: None,
             admin_token_file: Some(tmp.path().to_path_buf()),
         };
         assert_eq!(
             auth_file.resolve_admin_token().unwrap(),
+            Some("file-secret-token".into())
+        );
+
+        // Fallback: admin_token_env pointing to a file path directly
+        let auth_env_file = AuthConfig {
+            admin_token: None,
+            admin_token_env: Some(tmp.path().to_string_lossy().into()),
+            admin_token_file: None,
+        };
+        assert_eq!(
+            auth_env_file.resolve_admin_token().unwrap(),
             Some("file-secret-token".into())
         );
     }

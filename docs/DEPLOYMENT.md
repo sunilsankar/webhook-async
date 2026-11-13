@@ -205,7 +205,10 @@ bind = "127.0.0.1:9001"                  # Isolated management UI bind
 path_prefix = ""
 
 [auth]
-admin_token_env = "WEBHOOK_ADMIN_TOKEN"  # Token for /api/v1/* and Web UI
+admin_token = "your-secure-admin-password"  # Direct literal password in TOML
+# Or use an environment variable:
+# admin_token_env = "WEBHOOK_ADMIN_TOKEN"
+# Or use a secret file:
 # admin_token_file = "/run/secrets/admin_token"
 ```
 

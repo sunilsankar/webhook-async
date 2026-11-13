@@ -95,7 +95,7 @@ pub async fn authorize_admin_request(
         None => {
             return Err(ErrorResponse::response(
                 StatusCode::SERVICE_UNAVAILABLE,
-                "Admin token not configured. Set [auth].admin_token_env or [auth].admin_token_file in configuration.",
+                "Admin token not configured. Set [auth].admin_token, [auth].admin_token_env, or [auth].admin_token_file in configuration.",
             ));
         }
     };
@@ -650,6 +650,7 @@ mod tests {
                 std::env::set_var(&var_name, token);
             }
             app.auth = AuthConfig {
+                admin_token: None,
                 admin_token_env: Some(var_name),
                 admin_token_file: None,
             };

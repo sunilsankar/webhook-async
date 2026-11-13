@@ -16,7 +16,7 @@
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Bearer token configured via [auth].admin_token_env or [auth].admin_token_file"
+        "description": "Bearer token configured via [auth].admin_token, [auth].admin_token_env, or [auth].admin_token_file"
       }
     },
     "schemas": {
