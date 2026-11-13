@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - webhook-async{% endblock %}
+
+{% block content %}
+<div class="card-title">
+  <h2>Jobs History</h2>
+  <span style="font-size:0.85rem;color:var(--text-secondary);">Total: {{ total_count }}</span>
+</div>
+
+<div class="card">
+  <form method="get" action="{{ prefix }}/jobs" class="filter-bar">
+    <div>
+      <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:0.2rem;color:var(--text-secondary);">State</label>
+      <select name="state" onchange="this.form.submit()">
+        <option value="" {% if filter_state.is_empty() %}selected{% endif %}>All States</option>
+        <option value="queued" {% if filter_state == "queued" %}selected{% endif %}>Queued</option>
+        <option value="running" {% if filter_state == "running" %}selected{% endif %}>Running</option>
+        <option value="retry_wait" {% if filter_state == "retry_wait" %}selected{% endif %}>Retry Wait</option>
+        <option value="succeeded" {% if filter_state == "succeeded" %}selected{% endif %}>Succeeded</option>
+        <option value="failed" {% if filter_state == "failed" %}selected{% endif %}>Failed</option>
+        <option value="cancel_requested" {% if filter_state == "cancel_requested" %}selected{% endif %}>Cancel Requested</option>
+        <option value="cancelled" {% if filter_state == "cancelled" %}selected{% endif %}>Cancelled</option>
+        <option value="dead_letter" {% if filter_state == "dead_letter" %}selected{% endif %}>Dead Letter</option>
+      </select>
+    </div>
+    <div>
+      <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:0.2rem;color:var(--text-secondary);">Hook ID</label>
+      <input type="text" name="hook_id" value="{{ filter_hook_id }}" placeholder="Filter by hook ID...">
+    </div>
+    <div style="align-self:flex-end;">
+      <button type="submit" class="btn btn-primary">Filter</button>
+      <a href="{{ prefix }}/jobs" class="btn">Reset</a>
+    </div>
+  </form>
+
+  {% if jobs.is_empty() %}
+  <p style="color:var(--text-secondary);font-size:0.85rem;padding:1rem 0;">No matching jobs found.</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Job ID</th>
+          <th>Hook</th>
+          <th>State</th>
+          <th>Priority</th>
+          <th>Attempts</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td><a href="{{ prefix }}/jobs/{{ job.id }}" style="font-family:monospace;color:var(--primary);text-decoration:none;">{{ job.id_prefix }}</a></td>
+          <td>{{ job.hook_id }}</td>
+          <td><span class="badge badge-{{ job.state_str }}">{{ job.state_str }}</span></td>
+          <td>{{ job.priority }}</td>
+          <td>{{ job.attempt }}/{{ job.max_attempts }}</td>
+          <td style="color:var(--text-secondary);font-size:0.8rem;">{{ job.created_at_fmt }}</td>
+          <td>
+            <div style="display:flex;gap:0.35rem;">
+              <a href="{{ prefix }}/jobs/{{ job.id }}" class="btn btn-sm">View</a>
+              {% if job.can_retry %}
+              <button class="btn btn-sm"
+                      hx-post="{{ prefix }}/jobs/{{ job.id }}/retry"
+                      hx-confirm="Retry this job?"
+                      hx-swap="none"
+                      hx-on::after-request="location.reload()">Retry</button>
+              {% endif %}
+              {% if job.can_cancel %}
+              <button class="btn btn-sm btn-danger"
+                      hx-post="{{ prefix }}/jobs/{{ job.id }}/cancel"
+                      hx-confirm="Cancel this job?"
+                      hx-swap="none"
+                      hx-on::after-request="location.reload()">Cancel</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <div>
+      {% if has_prev %}
+      <a href="{{ prefix }}/jobs?state={{ filter_state }}&hook_id={{ filter_hook_id }}&offset={{ prev_offset }}&limit={{ limit }}" class="btn btn-sm">&larr; Previous</a>
+      {% endif %}
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-secondary);">Showing {{ current_range_start }} - {{ current_range_end }} of {{ total_count }}</span>
+    <div>
+      {% if has_next %}
+      <a href="{{ prefix }}/jobs?state={{ filter_state }}&hook_id={{ filter_hook_id }}&offset={{ next_offset }}&limit={{ limit }}" class="btn btn-sm">Next &rarr;</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

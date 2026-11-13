@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - webhook-async</title>
+  <link rel="stylesheet" href="{{ prefix }}/static/style.css">
+</head>
+<body>
+  <div class="card login-card">
+    <div class="card-title">
+      <span class="brand">webhook-async</span>
+      <span style="font-size:0.85rem;color:var(--text-secondary);">Admin Login</span>
+    </div>
+    {% if !error.is_empty() %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form action="{{ prefix }}/login" method="post">
+      <div style="margin-bottom:1rem;">
+        <label style="display:block;margin-bottom:0.35rem;font-weight:500;">Admin Token</label>
+        <input type="password" name="token" required autofocus style="width:100%;" placeholder="Enter configured admin token">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>

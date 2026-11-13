@@ -1,0 +1,20 @@
+[package]
+name = "webhook-async-storage-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+webhook-async-config.workspace = true
+webhook-async-core.workspace = true
+webhook-async-storage.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

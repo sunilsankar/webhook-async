@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Job {{ job.id_prefix }} - webhook-async{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1rem;">
+  <a href="{{ prefix }}/jobs" style="color:var(--text-secondary);text-decoration:none;font-size:0.85rem;">&larr; Back to Jobs</a>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <div>
+      <h2 style="font-family:monospace;display:inline-block;margin-right:0.75rem;">{{ job.id }}</h2>
+      <span class="badge badge-{{ job.state_str }}">{{ job.state_str }}</span>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      {% if job.can_retry %}
+      <button class="btn btn-primary"
+              hx-post="{{ prefix }}/jobs/{{ job.id }}/retry"
+              hx-confirm="Retry this failed job?"
+              hx-swap="none"
+              hx-on::after-request="location.reload()">Retry Job</button>
+      {% endif %}
+      {% if job.can_cancel %}
+      <button class="btn btn-danger"
+              hx-post="{{ prefix }}/jobs/{{ job.id }}/cancel"
+              hx-confirm="Cancel this job?"
+              hx-swap="none"
+              hx-on::after-request="location.reload()">Cancel Job</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;margin-top:1rem;">
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Hook ID</div>
+      <div style="font-weight:600;">{{ job.hook_id }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Priority</div>
+      <div style="font-weight:600;">{{ job.priority }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Attempts</div>
+      <div style="font-weight:600;">{{ job.attempt }} / {{ job.max_attempts }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Worker</div>
+      <div style="font-family:monospace;font-size:0.85rem;">{{ job.worker_id_str }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Created</div>
+      <div>{{ job.created_at_fmt }}</div>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Duration</div>
+      <div>{{ job.duration_str }}</div>
+    </div>
+    {% if !job.idempotency_key_str.is_empty() %}
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Idempotency Key</div>
+      <div style="font-family:monospace;font-size:0.85rem;">{{ job.idempotency_key_str }}</div>
+    </div>
+    {% endif %}
+    {% if let Some(code) = job.exit_code %}
+    <div>
+      <div style="font-size:0.75rem;color:var(--text-secondary);text-transform:uppercase;">Exit Code</div>
+      <div style="font-weight:600;">{{ code }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if !job.error_summary_str.is_empty() %}
+  <div class="alert alert-error" style="margin-top:1.25rem;">
+    <strong>Error:</strong> {{ job.error_summary_str }}
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <h3>Execution Specification</h3>
+  </div>
+  <table style="font-size:0.85rem;">
+    <tbody>
+      <tr>
+        <th style="width:160px;">Executable</th>
+        <td style="font-family:monospace;">{{ spec.executable }}</td>
+      </tr>
+      <tr>
+        <th>Arguments</th>
+        <td style="font-family:monospace;">{{ spec_args_str }}</td>
+      </tr>
+      <tr>
+        <th>Working Directory</th>
+        <td style="font-family:monospace;">{{ spec_working_dir_str }}</td>
+      </tr>
+      <tr>
+        <th>Timeout</th>
+        <td>{{ spec.timeout_seconds }}s</td>
+      </tr>
+      <tr>
+        <th>Environment Keys</th>
+        <td>{{ env_keys_str }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <h3>Attempts History ({{ attempts.len() }})</h3>
+  </div>
+  {% if attempts.is_empty() %}
+  <p style="color:var(--text-secondary);font-size:0.85rem;">No attempts recorded yet.</p>
+  {% else %}
+    {% for att in attempts %}
+    <div style="border:1px solid var(--border-color);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;background:var(--bg-surface-secondary);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div>
+          <strong>Attempt #{{ att.attempt }}</strong>
+          <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:0.5rem;">by {{ att.worker_id }}</span>
+        </div>
+        <div>
+          {% if let Some(code) = att.exit_code %}
+            {% if att.is_exit_zero %}
+            <span class="badge badge-succeeded">Exit 0</span>
+            {% else %}
+            <span class="badge badge-failed">Exit {{ code }}</span>
+            {% endif %}
+          {% endif %}
+          {% if let Some(err) = att.error_class_str %}
+          <span class="badge badge-dead_letter" style="margin-left:0.25rem;">{{ err }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+        Duration: {{ att.duration_str }} &bull; Finished: {{ att.finished_at_fmt }}
+      </div>
+
+      {% if !att.error_summary_str.is_empty() %}
+      <div style="color:var(--danger);font-size:0.85rem;margin-bottom:0.75rem;">
+        {{ att.error_summary_str }}
+      </div>
+      {% endif %}
+
+      {% if !att.stdout_preview_str.is_empty() %}
+      <div style="margin-top:0.5rem;">
+        <div style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.25rem;">STDOUT</div>
+        <pre>{{ att.stdout_preview_str }}</pre>
+      </div>
+      {% endif %}
+
+      {% if !att.stderr_preview_str.is_empty() %}
+      <div style="margin-top:0.5rem;">
+        <div style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.25rem;">STDERR</div>
+        <pre>{{ att.stderr_preview_str }}</pre>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

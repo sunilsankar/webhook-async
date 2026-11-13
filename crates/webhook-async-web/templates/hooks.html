@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Hooks - webhook-async{% endblock %}
+
+{% block content %}
+<div class="card-title">
+  <h2>Configured Webhooks ({{ hooks.len() }})</h2>
+</div>
+
+<div class="card">
+  {% if hooks.is_empty() %}
+  <p style="color:var(--text-secondary);font-size:0.85rem;">No webhook definitions loaded.</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Hook ID</th>
+          <th>Mode</th>
+          <th>Methods</th>
+          <th>Command</th>
+          <th>Working Dir</th>
+          <th>Max Attempts</th>
+          <th>Response</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hooks %}
+        <tr>
+          <td style="font-weight:600;font-family:monospace;">{{ h.id }}</td>
+          <td>
+            {% if h.is_async %}
+            <span class="badge badge-running">Async</span>
+            {% else %}
+            <span class="badge badge-queued">Sync</span>
+            {% endif %}
+          </td>
+          <td>{{ h.methods_str }}</td>
+          <td style="font-family:monospace;font-size:0.85rem;">{{ h.command }}</td>
+          <td style="font-family:monospace;font-size:0.85rem;">{{ h.working_dir }}</td>
+          <td>{{ h.max_attempts }}</td>
+          <td>
+            {% if h.include_output %}
+            <span class="badge badge-succeeded">Stdout</span>
+            {% else %}
+            <span style="color:var(--text-secondary);font-size:0.8rem;">Ack Only</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

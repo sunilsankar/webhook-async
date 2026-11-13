@@ -1,0 +1,42 @@
+[package]
+name = "webhook-async-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+axum.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+form_urlencoded.workspace = true
+futures-util.workspace = true
+libc.workspace = true
+rcgen.workspace = true
+rustls-pemfile.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["net", "rt", "signal", "sync"] }
+tokio-rustls.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+webhook-async-config.workspace = true
+webhook-async-core.workspace = true
+webhook-async-executor.workspace = true
+webhook-async-hook-engine.workspace = true
+webhook-async-queue.workspace = true
+webhook-async-storage.workspace = true
+webhook-async-worker.workspace = true
+
+[dev-dependencies]
+hex.workspace = true
+hmac.workspace = true
+http-body-util.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+tower = { workspace = true, features = ["util"] }
+webhook-async-compat.workspace = true
+webhook-async-storage-sqlite.workspace = true

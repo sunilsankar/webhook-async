@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Storage - webhook-async{% endblock %}
+
+{% block content %}
+<div class="card-title">
+  <h2>Storage Backend Status</h2>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <div>
+      <span style="font-size:1.1rem;font-weight:700;text-transform:uppercase;">{{ backend_name }}</span>
+      <span style="color:var(--text-secondary);font-size:0.85rem;margin-left:0.5rem;">Storage Engine</span>
+    </div>
+    <div>
+      {% if is_healthy %}
+      <span class="badge badge-succeeded">Connected</span>
+      {% else %}
+      <span class="badge badge-failed">Disconnected</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <table style="font-size:0.85rem;margin-top:0.5rem;">
+    <tbody>
+      <tr>
+        <th style="width:200px;">Priority Scheduling</th>
+        <td>{% if supports_priority %}&check; Yes{% else %}&cross; No{% endif %}</td>
+      </tr>
+      <tr>
+        <th>Multi-Host Distributed</th>
+        <td>{% if supports_multi_host %}&check; Yes{% else %}&cross; Single Node{% endif %}</td>
+      </tr>
+      <tr>
+        <th>Idempotency Retention</th>
+        <td>{% if supports_idempotency %}&check; Yes{% else %}&cross; No{% endif %}</td>
+      </tr>
+      <tr>
+        <th>Total Active / Pending</th>
+        <td style="font-weight:600;">{{ pending_count }} jobs</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <h3>Queue Breakdown</h3>
+  </div>
+  <table style="font-size:0.85rem;">
+    <thead>
+      <tr>
+        <th>State</th>
+        <th>Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in counts %}
+      <tr>
+        <td><span class="badge badge-{{ item.state }}">{{ item.state }}</span></td>
+        <td style="font-weight:600;">{{ item.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

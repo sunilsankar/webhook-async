@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - webhook-async{% endblock %}
+
+{% block content %}
+<div class="card-title">
+  <h2>Operational Overview</h2>
+  <span style="font-size:0.8rem;color:var(--text-secondary);" id="sse-status">● Live</span>
+</div>
+
+<div class="stats-grid" id="stats-container">
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--text-secondary);">{{ queued_count }}</div>
+    <div class="stat-label">Queued</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--primary);">{{ running_count }}</div>
+    <div class="stat-label">Running</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--warning);">{{ retry_wait_count }}</div>
+    <div class="stat-label">Retry Wait</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--success);">{{ succeeded_count }}</div>
+    <div class="stat-label">Succeeded</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--danger);">{{ failed_count }}</div>
+    <div class="stat-label">Failed</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:var(--text-muted);">{{ cancelled_count }}</div>
+    <div class="stat-label">Cancelled</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val" style="color:#9f1239;">{{ dead_letter_count }}</div>
+    <div class="stat-label">Dead Letter</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-val">{{ pending_count }}</div>
+    <div class="stat-label">Total Pending</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <h3>Active Workers ({{ workers.len() }})</h3>
+  </div>
+  {% if workers.is_empty() %}
+  <p style="color:var(--text-secondary);font-size:0.85rem;">No active workers connected.</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Worker ID</th>
+          <th>Concurrency</th>
+          <th>Active Jobs</th>
+          <th>Completed</th>
+          <th>Failed</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in workers %}
+        <tr>
+          <td style="font-family:monospace;font-size:0.85rem;">{{ w.worker_id }}</td>
+          <td>{{ w.concurrency }}</td>
+          <td>{{ w.active_jobs }}</td>
+          <td>{{ w.completed_count }}</td>
+          <td>{{ w.failed_count }}</td>
+          <td>
+            {% if w.draining %}
+            <span class="badge badge-retry_wait">Draining</span>
+            {% else %}
+            <span class="badge badge-succeeded">Active</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <h3>Recent Jobs</h3>
+    <a href="{{ prefix }}/jobs" class="btn btn-sm">View All Jobs &rarr;</a>
+  </div>
+  {% if recent_jobs.is_empty() %}
+  <p style="color:var(--text-secondary);font-size:0.85rem;">No recent jobs in queue.</p>
+  {% else %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Job ID</th>
+          <th>Hook</th>
+          <th>Status</th>
+          <th>Attempt</th>
+          <th>Created</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in recent_jobs %}
+        <tr>
+          <td><a href="{{ prefix }}/jobs/{{ job.id }}" style="font-family:monospace;color:var(--primary);text-decoration:none;">{{ job.id_prefix }}</a></td>
+          <td>{{ job.hook_id }}</td>
+          <td><span class="badge badge-{{ job.state_str }}">{{ job.state_str }}</span></td>
+          <td>{{ job.attempt }}/{{ job.max_attempts }}</td>
+          <td style="color:var(--text-secondary);font-size:0.8rem;">{{ job.created_at_fmt }}</td>
+          <td>
+            <a href="{{ prefix }}/jobs/{{ job.id }}" class="btn btn-sm">Details</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  if (window.EventSource) {
+    const ev = new EventSource('{{ prefix }}/events');
+    ev.onmessage = function(e) {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.counts_by_state) {
+          const statusEl = document.getElementById('sse-status');
+          if (statusEl) statusEl.style.color = 'var(--success)';
+        }
+      } catch (err) {}
+    };
+    ev.onerror = function() {
+      const statusEl = document.getElementById('sse-status');
+      if (statusEl) {
+        statusEl.textContent = '○ Reconnecting...';
+        statusEl.style.color = 'var(--warning)';
+      }
+    };
+  }
+</script>
+{% endblock %}

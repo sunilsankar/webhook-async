@@ -1,0 +1,30 @@
+[package]
+name = "webhook-async-hook-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+form_urlencoded.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+hmac.workspace = true
+ipnet.workspace = true
+multer.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+webhook-async-core.workspace = true
+xmltree.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

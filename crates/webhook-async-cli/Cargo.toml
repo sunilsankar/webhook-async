@@ -1,0 +1,32 @@
+[package]
+name = "webhook-async-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "webhook-async"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+chrono.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+webhook-async-api.workspace = true
+webhook-async-compat.workspace = true
+webhook-async-config.workspace = true
+webhook-async-core.workspace = true
+webhook-async-queue.workspace = true
+webhook-async-storage.workspace = true
+webhook-async-storage-redis.workspace = true
+webhook-async-storage-sqlite.workspace = true
+webhook-async-web.workspace = true
+webhook-async-worker.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

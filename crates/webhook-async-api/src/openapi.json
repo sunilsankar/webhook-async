@@ -1,0 +1,400 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "webhook-async Management API",
+    "version": "0.1.0",
+    "description": "Administrative REST API and webhook receiver for webhook-async."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Management API v1"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer token configured via [auth].admin_token_env or [auth].admin_token_file"
+      }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "version": { "type": "string", "example": "0.1.0" }
+        },
+        "required": ["status", "version"]
+      },
+      "ReadyStatus": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ready" },
+          "error": { "type": "string" }
+        },
+        "required": ["status"]
+      },
+      "QueueStats": {
+        "type": "object",
+        "properties": {
+          "counts_by_state": {
+            "type": "object",
+            "additionalProperties": { "type": "integer" }
+          },
+          "pending_count": { "type": "integer" }
+        },
+        "required": ["counts_by_state", "pending_count"]
+      },
+      "JobRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "hook_id": { "type": "string" },
+          "state": { "type": "string" },
+          "priority": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "started_at": { "type": "string", "format": "date-time", "nullable": true },
+          "completed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "attempt": { "type": "integer" },
+          "max_attempts": { "type": "integer" },
+          "exit_code": { "type": "integer", "nullable": true },
+          "error_class": { "type": "string", "nullable": true },
+          "error_summary": { "type": "string", "nullable": true }
+        },
+        "required": ["id", "hook_id", "state", "priority", "created_at", "attempt", "max_attempts"]
+      },
+      "JobAttempt": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "attempt": { "type": "integer" },
+          "worker_id": { "type": "string" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "finished_at": { "type": "string", "format": "date-time" },
+          "exit_code": { "type": "integer", "nullable": true },
+          "error_class": { "type": "string", "nullable": true },
+          "error_summary": { "type": "string", "nullable": true },
+          "stdout_preview": { "type": "string", "nullable": true },
+          "stderr_preview": { "type": "string", "nullable": true }
+        },
+        "required": ["job_id", "attempt", "worker_id", "started_at", "finished_at"]
+      },
+      "JobDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/JobRecord" },
+          {
+            "type": "object",
+            "properties": {
+              "attempts": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/JobAttempt" }
+              }
+            },
+            "required": ["attempts"]
+          }
+        ]
+      },
+      "JobPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/JobRecord" }
+          },
+          "total": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" }
+        },
+        "required": ["items", "total", "limit", "offset"]
+      },
+      "HookSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "execution_mode": { "type": "string" },
+          "http_methods": { "type": "array", "items": { "type": "string" } },
+          "max_attempts": { "type": "integer", "nullable": true },
+          "command_working_directory": { "type": "string", "nullable": true },
+          "response_message": { "type": "string", "nullable": true },
+          "include_command_output_in_response": { "type": "boolean" },
+          "trigger_rule_count": { "type": "integer" }
+        },
+        "required": ["id", "execution_mode", "http_methods", "include_command_output_in_response", "trigger_rule_count"]
+      },
+      "WorkerInfo": {
+        "type": "object",
+        "properties": {
+          "worker_id": { "type": "string" },
+          "hostname": { "type": "string" },
+          "pid": { "type": "integer" },
+          "concurrency": { "type": "integer" },
+          "active_jobs": { "type": "integer" },
+          "completed_count": { "type": "integer" },
+          "failed_count": { "type": "integer" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "last_heartbeat_at": { "type": "string", "format": "date-time" },
+          "draining": { "type": "boolean" }
+        },
+        "required": ["worker_id", "hostname", "pid", "concurrency", "active_jobs", "completed_count", "failed_count", "started_at", "last_heartbeat_at", "draining"]
+      },
+      "StorageStatus": {
+        "type": "object",
+        "properties": {
+          "backend": { "type": "string" },
+          "supports_priority": { "type": "boolean" },
+          "supports_multi_host": { "type": "boolean" },
+          "supports_idempotency": { "type": "boolean" },
+          "connected": { "type": "boolean" },
+          "pending_jobs": { "type": "integer" }
+        },
+        "required": ["backend", "supports_priority", "supports_multi_host", "supports_idempotency", "connected", "pending_jobs"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" }
+        },
+        "required": ["error"]
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness check",
+        "responses": {
+          "200": {
+            "description": "Storage backend is ready",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReadyStatus" }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage backend is not ready",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ReadyStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "OpenAPI specification",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 JSON document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Queue statistics",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Queue statistics",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/QueueStats" }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "429": { "description": "Rate limit exceeded" }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "summary": "List jobs",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "hook_id", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated job page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobPage" }
+              }
+            }
+          },
+          "400": { "description": "Invalid limit or offset" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "summary": "Get job details and attempt history",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobDetail" }
+              }
+            }
+          },
+          "404": { "description": "Job not found" }
+        }
+      }
+    },
+    "/jobs/{id}/retry": {
+      "post": {
+        "summary": "Retry a failed or dead-letter job",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job transitioned to queued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobRecord" }
+              }
+            }
+          },
+          "404": { "description": "Job not found" },
+          "409": { "description": "Job is not in a retryable state" }
+        }
+      }
+    },
+    "/jobs/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a queued or running job",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job cancelled or cancel requested",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobRecord" }
+              }
+            }
+          },
+          "404": { "description": "Job not found" },
+          "409": { "description": "Job cannot be cancelled" }
+        }
+      }
+    },
+    "/hooks": {
+      "get": {
+        "summary": "List configured hooks",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of hooks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/HookSummary" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workers": {
+      "get": {
+        "summary": "List active workers",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of registered workers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workers": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WorkerInfo" }
+                    }
+                  },
+                  "required": ["workers"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/storage/status": {
+      "get": {
+        "summary": "Storage backend status",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Storage capabilities and connection status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StorageStatus" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "Server-Sent Events live stream",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "SSE event stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

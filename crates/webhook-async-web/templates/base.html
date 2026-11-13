@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}webhook-async{% endblock %}</title>
+  <link rel="stylesheet" href="{{ prefix }}/static/style.css">
+  <script src="{{ prefix }}/static/htmx.min.js"></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <header>
+    <a href="{{ prefix }}/" class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      webhook-async
+    </a>
+    <nav>
+      <a href="{{ prefix }}/" class="{% if current_nav == "dashboard" %}active{% endif %}">Dashboard</a>
+      <a href="{{ prefix }}/jobs" class="{% if current_nav == "jobs" %}active{% endif %}">Jobs</a>
+      <a href="{{ prefix }}/hooks" class="{% if current_nav == "hooks" %}active{% endif %}">Hooks</a>
+      <a href="{{ prefix }}/storage" class="{% if current_nav == "storage" %}active{% endif %}">Storage</a>
+      <form action="{{ prefix }}/logout" method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-sm">Logout</button>
+      </form>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
