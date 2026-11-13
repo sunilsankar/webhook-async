@@ -46,7 +46,8 @@ All storage implementations must pass the shared 11-scenario conformance suite i
 
 ## 4. Valkey and Redis Backend (`webhook-async-storage-redis` — Phase 4)
 
-- **Shared RESP adapter**: One implementation (`RedisProtocolStorage`) serves both `backend = "valkey"` (`valkey://` / `valkeys://`) and `backend = "redis"` (`redis://` / `rediss://`) over `redis::aio::ConnectionManager` with bounded connect/response timeouts (`5s` / `10s`) and explicit credential redaction in `Debug` and error messages.
+- **Shared RESP adapter**: One implementation (`RedisProtocolStorage`) serves both `backend = "valkey"` and `backend = "redis"` over `redis::aio::ConnectionManager` with bounded connect/response timeouts (`5s` / `10s`) and explicit credential redaction in `Debug` and error messages.
+  - **Configuration**: supports discrete connection fields (`host`, `port`, `database`, `username`, `password`, `tls`) or a single connection `url` (e.g. `redis://:secret@127.0.0.1:6379/0` or `valkeys://app:secret@valkey.internal:6379/2`). Specify either discrete fields or `url`, not both. Password and URL credentials are fully redacted in debug prints and tracing logs.
 - **ZSET + Lua data model** (chosen over Streams so per-job ownership checks, `priority DESC` scheduling, and per-job lease expiry recovery match `QueueStorage` identically across SQLite, Valkey, and Redis):
   - All keys share a hash-tag `{<key_prefix>}:...` so multi-key Lua scripts execute safely on both standalone instances and Redis/Valkey Cluster deployments.
   - Job state & immutable `ExecutionSpec` snapshot live in `{prefix}:job:<id>` (Hash) and `{prefix}:attempts:<id>` (List of JSON `JobAttempt` entries).

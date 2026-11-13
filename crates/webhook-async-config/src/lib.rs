@@ -113,10 +113,39 @@ pub struct SqliteStorageConfig {
     pub busy_timeout_ms: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RedisDatabase {
+    Index(i64),
+    Name(String),
+}
+
+impl fmt::Display for RedisDatabase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Index(i) => write!(f, "{i}"),
+            Self::Name(s) => write!(f, "{s}"),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RedisProtocolStorageConfig {
-    pub url: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub database: Option<RedisDatabase>,
+    #[serde(default)]
+    pub username: Option<String>,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
+    pub tls: Option<bool>,
     #[serde(default = "default_key_prefix")]
     pub key_prefix: String,
     #[serde(default = "default_stream_name")]
@@ -125,10 +154,96 @@ pub struct RedisProtocolStorageConfig {
     pub consumer_group: String,
 }
 
+fn percent_encode_userinfo(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char);
+            }
+            _ => {
+                use std::fmt::Write;
+                let _ = write!(out, "%{:02X}", b);
+            }
+        }
+    }
+    out
+}
+
+impl RedisProtocolStorageConfig {
+    #[must_use]
+    pub fn from_url(url: impl Into<String>) -> Self {
+        Self {
+            url: Some(url.into()),
+            host: None,
+            port: None,
+            database: None,
+            username: None,
+            password: None,
+            tls: None,
+            key_prefix: default_key_prefix(),
+            stream_name: default_stream_name(),
+            consumer_group: default_consumer_group(),
+        }
+    }
+
+    #[must_use]
+    pub fn resolve_url(&self) -> String {
+        if let Some(url) = &self.url {
+            return url.clone();
+        }
+
+        let scheme = if self.tls.unwrap_or(false) {
+            "rediss"
+        } else {
+            "redis"
+        };
+
+        let auth = match (&self.username, &self.password) {
+            (Some(user), Some(pass)) => {
+                format!(
+                    "{}:{}@",
+                    percent_encode_userinfo(user),
+                    percent_encode_userinfo(pass)
+                )
+            }
+            (None, Some(pass)) => {
+                format!(":{}@", percent_encode_userinfo(pass))
+            }
+            (Some(user), None) => {
+                format!("{}@", percent_encode_userinfo(user))
+            }
+            (None, None) => String::new(),
+        };
+
+        let host = self.host.as_deref().unwrap_or("127.0.0.1");
+        let host_formatted = if host.contains(':') && !host.starts_with('[') {
+            format!("[{host}]")
+        } else {
+            host.to_string()
+        };
+
+        let port = self.port.unwrap_or(6379);
+        let db = self
+            .database
+            .as_ref()
+            .map(std::string::ToString::to_string)
+            .unwrap_or_else(|| "0".into());
+
+        format!("{scheme}://{auth}{host_formatted}:{port}/{db}")
+    }
+}
+
 impl fmt::Debug for RedisProtocolStorageConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RedisProtocolStorageConfig")
-            .field("url", &redact_url_credentials(&self.url))
+            .field("url", &self.url.as_deref().map(redact_url_credentials))
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("database", &self.database)
+            .field("username", &self.username)
+            .field("password", &self.password.as_ref().map(|_| "[REDACTED]"))
+            .field("tls", &self.tls)
             .field("key_prefix", &self.key_prefix)
             .field("stream_name", &self.stream_name)
             .field("consumer_group", &self.consumer_group)
@@ -586,16 +701,64 @@ fn validate_redis_protocol_cfg(
     field_prefix: &'static str,
     cfg: &RedisProtocolStorageConfig,
 ) -> Result<(), ConfigError> {
-    let valid_scheme = cfg.url.starts_with("redis://")
-        || cfg.url.starts_with("rediss://")
-        || cfg.url.starts_with("valkey://")
-        || cfg.url.starts_with("valkeys://");
-    if !valid_scheme {
+    let has_discrete = cfg.host.is_some()
+        || cfg.port.is_some()
+        || cfg.database.is_some()
+        || cfg.username.is_some()
+        || cfg.password.is_some()
+        || cfg.tls.is_some();
+
+    if let Some(url) = &cfg.url {
+        if has_discrete {
+            return Err(ConfigError::validation(
+                field_prefix,
+                "specify either url or discrete connection fields (host, port, database, username, password, tls), not both",
+            ));
+        }
+        let valid_scheme = url.starts_with("redis://")
+            || url.starts_with("rediss://")
+            || url.starts_with("valkey://")
+            || url.starts_with("valkeys://");
+        if !valid_scheme {
+            return Err(ConfigError::validation(
+                field_prefix,
+                "url must start with redis://, rediss://, valkey://, or valkeys://",
+            ));
+        }
+    } else if !has_discrete {
         return Err(ConfigError::validation(
             field_prefix,
-            "url must start with redis://, rediss://, valkey://, or valkeys://",
+            "must specify either url or connection settings (host, port, database, username, password)",
         ));
     }
+
+    if let Some(host) = &cfg.host
+        && host.trim().is_empty()
+    {
+        return Err(ConfigError::validation(
+            field_prefix,
+            "host must not be empty",
+        ));
+    }
+
+    if let Some(port) = cfg.port
+        && port == 0
+    {
+        return Err(ConfigError::validation(
+            field_prefix,
+            "port must be between 1 and 65535",
+        ));
+    }
+
+    if let Some(RedisDatabase::Index(idx)) = cfg.database
+        && idx < 0
+    {
+        return Err(ConfigError::validation(
+            field_prefix,
+            "database index must be non-negative",
+        ));
+    }
+
     if cfg.key_prefix.trim().is_empty()
         || cfg.stream_name.trim().is_empty()
         || cfg.consumer_group.trim().is_empty()
@@ -871,5 +1034,71 @@ url = "rediss://default:supersecret@valkey.internal:6379"
             auth_env_file.resolve_admin_token().unwrap(),
             Some("file-secret-token".into())
         );
+    }
+
+    #[test]
+    fn resolves_discrete_redis_protocol_storage_config_and_redacts_password() {
+        let toml_discrete = r#"
+[storage]
+backend = "redis"
+[storage.redis]
+host = "10.0.0.5"
+port = 6380
+database = 3
+username = "app_user"
+password = "p@ss:word#123"
+tls = true
+"#;
+        let cfg = AppConfig::from_toml_str(toml_discrete).expect("valid discrete redis config");
+        let redis_cfg = cfg.storage.as_ref().unwrap().redis.as_ref().unwrap();
+        assert_eq!(
+            redis_cfg.resolve_url(),
+            "rediss://app_user:p%40ss%3Aword%23123@10.0.0.5:6380/3"
+        );
+        let debug_str = format!("{redis_cfg:?}");
+        assert!(!debug_str.contains("p@ss:word#123"));
+        assert!(!debug_str.contains("p%40ss%3Aword%23123"));
+        assert!(debug_str.contains("[REDACTED]"));
+
+        // Discrete with string database and default host/port
+        let toml_string_db = r#"
+[storage]
+backend = "valkey"
+[storage.valkey]
+password = "simple_secret"
+database = "analytics"
+"#;
+        let valkey_cfg = AppConfig::from_toml_str(toml_string_db).expect("valid valkey config");
+        let v_cfg = valkey_cfg
+            .storage
+            .as_ref()
+            .unwrap()
+            .valkey
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            v_cfg.resolve_url(),
+            "redis://:simple_secret@127.0.0.1:6379/analytics"
+        );
+
+        // Reject setting both url and discrete fields
+        let toml_conflict = r#"
+[storage]
+backend = "redis"
+[storage.redis]
+url = "redis://127.0.0.1:6379/0"
+host = "10.0.0.1"
+"#;
+        assert!(AppConfig::from_toml_str(toml_conflict).is_err());
+
+        // Reject invalid port 0
+        let toml_bad_port = r#"
+[storage]
+backend = "redis"
+[storage.redis]
+host = "127.0.0.1"
+port = 0
+"#;
+        assert!(AppConfig::from_toml_str(toml_bad_port).is_err());
     }
 }

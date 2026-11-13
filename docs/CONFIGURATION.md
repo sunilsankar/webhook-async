@@ -60,7 +60,10 @@ Deferred flags (Phase 7: `--template`, `--hotreload`, `--secure`, `--cert`, `--k
 ### `[storage]` (Required only when async execution is enabled; SQLite active since Phase 3, Valkey/Redis active in Phase 4)
 - `backend`: `"sqlite"` | `"valkey"` | `"redis"`.
 - `[storage.sqlite]`: `database_url` (file path or SQLite URL, e.g. `"sqlite://webhook.db"` or `"/var/lib/webhook-async/queue.db"`), `wal_mode` (default `true`), `busy_timeout_ms` (default `5000`, `> 0`).
-- `[storage.valkey]` / `[storage.redis]`: `url` (credential-bearing URLs are redacted in `Debug`/logs), `key_prefix` (default `"webhook_async"`), `stream_name` (default `"jobs"`), `consumer_group` (default `"workers"`). Note: `valkey` requires `[storage.valkey]`; `redis` requires `[storage.redis]`. (`stream_name` and `consumer_group` are accepted TOML schema fields retained for configuration stability while the active RESP adapter uses hash-tagged ZSETs + Lua scripts.)
+- `[storage.valkey]` / `[storage.redis]`: Connection settings can be specified either via a single `url` or via discrete connection fields (`host`, `port`, `database`, `username`, `password`, `tls`):
+  - Discrete fields: `host` (default `"127.0.0.1"`), `port` (default `6379`), `database` (index integer e.g. `0` or string, default `0`), `username` (optional ACL user), `password` (optional password, redacted in logs/debug), `tls` (boolean, default `false`).
+  - Or single URL: `url` (e.g. `"redis://:secret@127.0.0.1:6379/0"`, credential-bearing URLs are redacted in `Debug`/logs). Specify either `url` or discrete fields, not both.
+  - Common fields: `key_prefix` (default `"webhook_async"`), `stream_name` (default `"jobs"`), `consumer_group` (default `"workers"`). Note: `valkey` requires `[storage.valkey]`; `redis` requires `[storage.redis]`. (`stream_name` and `consumer_group` are accepted TOML schema fields retained for configuration stability while the active RESP adapter uses hash-tagged ZSETs + Lua scripts.)
 
 ### `[worker]`
 - `concurrency` (default `4`, `>= 1`)

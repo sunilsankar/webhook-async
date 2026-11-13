@@ -59,9 +59,10 @@ impl RedisProtocolStorage {
                 "RedisProtocolStorage only accepts 'valkey' or 'redis' backend kinds".into(),
             ));
         }
-        let resp_url = normalize_resp_url(&config.url);
+        let raw_url = config.resolve_url();
+        let resp_url = normalize_resp_url(&raw_url);
         let client = redis::Client::open(resp_url.as_str())
-            .map_err(|err| redis_err_to_storage(err, &config.url))?;
+            .map_err(|err| redis_err_to_storage(err, &raw_url))?;
         let mgr_cfg = redis::aio::ConnectionManagerConfig::new()
             .set_factor(2)
             .set_max_delay(500)
@@ -70,7 +71,7 @@ impl RedisProtocolStorage {
             .set_response_timeout(std::time::Duration::from_secs(10));
         let conn = ConnectionManager::new_with_config(client, mgr_cfg)
             .await
-            .map_err(|err| redis_err_to_storage(err, &config.url))?;
+            .map_err(|err| redis_err_to_storage(err, &raw_url))?;
         Ok(Self {
             backend,
             config: config.clone(),
@@ -92,18 +93,15 @@ impl RedisProtocolStorage {
             .arg(&pattern)
             .query_async(&mut conn)
             .await
-            .map_err(|err| redis_err_to_storage(err, &self.config.url))?;
+            .map_err(|err| self.err(err))?;
         if !keys.is_empty() {
-            let _: () = conn
-                .del(keys)
-                .await
-                .map_err(|err| redis_err_to_storage(err, &self.config.url))?;
+            let _: () = conn.del(keys).await.map_err(|err| self.err(err))?;
         }
         Ok(())
     }
 
     fn err(&self, err: redis::RedisError) -> StorageError {
-        redis_err_to_storage(err, &self.config.url)
+        redis_err_to_storage(err, &self.config.resolve_url())
     }
 
     async fn fetch_jobs_by_ids(&self, ids: &[String]) -> Result<Vec<JobRecord>, StorageError> {

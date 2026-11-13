@@ -178,10 +178,13 @@ busy_timeout_ms = 5000
 
 # Alternative distributed Valkey/Redis storage:
 # [storage]
-# backend = "valkey"
-# [storage.valkey]
-# url = "redis://10.0.1.50:6379/0"
-# key_prefix = "webhook_async:"
+# backend = "valkey"                          # Or "redis"
+# [storage.valkey]                            # Or [storage.redis]
+# host = "10.0.1.50"                          # Or specify url = "redis://..."
+# port = 6379
+# database = 0
+# password = "secret"
+# key_prefix = "webhook_async"
 
 [worker]
 concurrency = 8                          # Bounded concurrent tasks
