@@ -20,6 +20,24 @@ A standalone Rust webhook receiver and asynchronous job engine.
 
 ---
 
+## Web UI Screenshots
+
+The built-in web management interface provides real-time visibility into queue states, running jobs, execution logs, and storage health:
+
+| Dashboard | Job Details & Execution Logs |
+|:---:|:---:|
+| ![Dashboard](screenshots/ui-dashboard.png) | ![Job Details](screenshots/ui-job-detail.png) |
+
+| Filterable Jobs Queue | Configured Hooks & Rules |
+|:---:|:---:|
+| ![Jobs Queue](screenshots/ui-jobs.png) | ![Hooks](screenshots/ui-hooks.png) |
+
+| Storage & Backend Status | Secure Session Login |
+|:---:|:---:|
+| ![Storage Status](screenshots/ui-storage.png) | ![Login](screenshots/ui-login.png) |
+
+---
+
 ## Documentation
 
 Full documentation is available in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and on the [Documentation Site](https://sunilsankar.github.io/webhook-async-docs/):
