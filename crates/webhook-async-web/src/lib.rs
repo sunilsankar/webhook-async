@@ -1030,9 +1030,14 @@ pub fn build_web_router(state: WebState) -> Router {
     if state.path_prefix.is_empty() || state.path_prefix == "/" {
         routes
     } else {
+        let prefix = state.path_prefix.trim_end_matches('/');
         Router::new()
             .merge(routes.clone())
-            .nest(&state.path_prefix, routes)
+            .route(
+                &format!("{prefix}/"),
+                get(handle_dashboard).with_state(state.clone()),
+            )
+            .nest(prefix, routes)
     }
 }
 
@@ -1069,6 +1074,71 @@ mod tests {
         let state = WebState::new(runtime, coordinator, None)
             .with_admin_token(admin_token.map(|s| s.to_string()));
         (state, Some(storage))
+    }
+
+    #[tokio::test]
+    async fn test_prefix_routing_dashboard_and_jobs() {
+        let (state, storage) = test_state(Some("secret123")).await;
+        let session = state.create_session().await;
+        let router = build_web_router(state);
+
+        // Check GET /ui
+        let req = Request::builder()
+            .uri("/ui")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Check GET /ui/
+        let req = Request::builder()
+            .uri("/ui/")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Check GET /jobs
+        let req = Request::builder()
+            .uri("/jobs")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Check GET /ui/jobs
+        let req = Request::builder()
+            .uri("/ui/jobs")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Check GET /jobs
+        let req = Request::builder()
+            .uri("/jobs")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        println!("GET /jobs status: {}", res.status());
+
+        // Check GET /ui/jobs
+        let req = Request::builder()
+            .uri("/ui/jobs")
+            .header(header::COOKIE, format!("session_id={}", session.session_id))
+            .body(Body::empty())
+            .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        println!("GET /ui/jobs status: {}", res.status());
+
+        if let Some(s) = storage {
+            s.close().await;
+        }
     }
 
     #[tokio::test]
@@ -1317,5 +1387,10 @@ mod tests {
         // HTML is properly escaped (Askama escapes '<' to '&#60;' and '>' to '&#62;')
         assert!(html.contains("&#60;script&#62;"));
         assert!(!html.contains("<script>alert('xss')</script>"));
+        // Verify footer content
+        assert!(html.contains("webhook-async"));
+        assert!(html.contains("v1.2.0-beta"));
+        assert!(html.contains("Sunil Sankar"));
+        assert!(html.contains("https://github.com/sunilsankar/webhook-async"));
     }
 }
