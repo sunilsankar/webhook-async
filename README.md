@@ -41,7 +41,7 @@ Download the precompiled standalone binary for your architecture from [GitHub Re
 
 ```bash
 # Example for Linux x86_64
-curl -L -o webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v0.1.0-beta/webhook-async-linux-amd64
+curl -L -o webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v1.2.0-beta/webhook-async-linux-amd64
 chmod +x webhook-async
 sudo mv webhook-async /usr/local/bin/
 ```

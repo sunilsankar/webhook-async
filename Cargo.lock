@@ -2844,7 +2844,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-api"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "axum",
  "bytes",
@@ -2882,7 +2882,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-cli"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "axum",
  "chrono",
@@ -2906,7 +2906,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-compat"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "minijinja",
  "serde",
@@ -2919,7 +2919,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-config"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "hex",
  "serde",
@@ -2934,7 +2934,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-core"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "chrono",
  "serde",
@@ -2945,7 +2945,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-executor"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "libc",
  "tempfile",
@@ -2957,7 +2957,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-hook-engine"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -2983,7 +2983,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-queue"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2998,7 +2998,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-storage"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3010,7 +3010,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-storage-redis"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3027,7 +3027,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-storage-sqlite"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3043,7 +3043,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-web"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "askama",
  "axum",
@@ -3068,7 +3068,7 @@ dependencies = [
 
 [[package]]
 name = "webhook-async-worker"
-version = "0.1.0"
+version = "1.2.0-beta"
 dependencies = [
  "chrono",
  "tempfile",

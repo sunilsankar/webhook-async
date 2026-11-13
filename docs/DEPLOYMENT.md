@@ -94,7 +94,7 @@ A comprehensive, production-grade guide to deploying, configuring, and operating
 Download the prebuilt binary from [GitHub Releases](https://github.com/sunilsankar/webhook-async/releases):
 ```bash
 # Example for Linux x86_64
-curl -L -o webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v0.1.0-beta/webhook-async-linux-amd64
+curl -L -o webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v1.2.0-beta/webhook-async-linux-amd64
 chmod +x webhook-async
 sudo mv webhook-async /usr/local/bin/
 ```
@@ -556,7 +556,7 @@ spec:
     spec:
       containers:
         - name: receiver
-          image: ghcr.io/sunilsankar/webhook-async:v0.1.0-beta
+          image: ghcr.io/sunilsankar/webhook-async:v1.2.0-beta
           args: ["server", "--config", "/etc/webhook/config.toml", "--async"]
           ports:
             - containerPort: 9000
@@ -607,7 +607,7 @@ Ideal for developer machines or dedicated Mac mini build agents.
 
 #### 1. Install Binary
 ```bash
-curl -L -o /usr/local/bin/webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v0.1.0-beta/webhook-async-macos-arm64
+curl -L -o /usr/local/bin/webhook-async https://github.com/sunilsankar/webhook-async/releases/download/v1.2.0-beta/webhook-async-macos-arm64
 chmod +x /usr/local/bin/webhook-async
 ```
 
