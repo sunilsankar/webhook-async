@@ -11,6 +11,7 @@ A comprehensive, production-grade guide to deploying, configuring, and operating
 3. [Configuration Reference](#3-configuration-reference)
    - [Application Configuration (`config.toml`)](#application-configuration-configtoml)
    - [Hook Definitions (`hooks.json` / `hooks.yaml`)](#hook-definitions-hooksjson--hooksyaml)
+   - [Multiple Hooks](#multiple-hooks)
    - [Execution Mode Precedence (Sync vs Async)](#execution-mode-precedence-sync-vs-async)
 4. [Deployment Environments](#4-deployment-environments)
    - [Environment 1: Linux Bare Metal / VM (systemd)](#environment-1-linux-bare-metal--vm-systemd)
@@ -308,6 +309,58 @@ When started with `--template` (or `-template`), hook files support Go-template 
 - `{{ cat "/etc/secrets/token" }}`: Injects file contents (trims trailing newline).
 - `{{ credential "secret_name" }}`: Injects systemd credentials (`$CREDENTIALS_DIRECTORY`).
 - `{{ ... | js }}`: Safely escapes content for valid JSON string representation.
+
+---
+
+### Multiple Hooks
+
+One server can host any number of independent hooks. Two ways to define them.
+
+**1. Many hooks in one file** — the file is a top-level JSON/YAML array:
+
+```json
+[
+  { "id": "github-deploy",  "execute-command": "/opt/scripts/deploy.sh" },
+  { "id": "gitlab-deploy",  "execute-command": "/opt/scripts/deploy.sh" },
+  { "id": "healthcheck",    "execute-command": "/bin/true" }
+]
+```
+
+**2. Split across several files** — repeat `--hooks`:
+
+```bash
+webhook-async server --port 9000 \
+  --hooks /etc/webhook/hooks.d/github.json \
+  --hooks /etc/webhook/hooks.d/gitlab.yaml
+```
+
+or in `config.toml`:
+
+```toml
+[server]
+hook_files = [
+  "/etc/webhook/hooks.d/github.json",
+  "/etc/webhook/hooks.d/gitlab.yaml",
+]
+```
+
+Rules:
+
+- All files are merged into one flat namespace of hook IDs. `--hooks` **replaces** `server.hook_files` entirely — the two are not merged. If neither is set, `hooks.json` in the working directory is used.
+- IDs must be unique across every file. A repeated ID fails startup with `duplicate hook id 'deploy'`.
+- Each hook is served at its own URL: `/hooks/{id}` (prefix set by `--urlprefix` / `server.url_prefix`; an empty prefix routes `/{id}`). A request is dispatched to exactly one hook — the one whose ID matches the path. Hooks never chain, and each hook runs a single command; fan out inside the command if you need one trigger to do several things.
+- Per-hook fields (`trigger-rule`, `http-methods`, `response-message`, `async`, …) are independent. A request that fails one hook's trigger rules does not reach the others.
+- Mixed sync/async across hooks is supported: set `"async": true` on the hooks that need a queue and leave the rest synchronous, or set `"async": false` explicitly to override a global `--async`. A `[storage]` section is required as soon as at least one hook resolves to async.
+- Reloads cover every file: `SIGHUP`/`SIGUSR1` or `--hotreload` re-reads all hook files and swaps the whole set at once. If any file fails to parse, the reload is aborted and the previously loaded hooks stay active. Adding a *new* file requires a restart — the watcher only tracks files known at startup.
+- Validate the whole set before restarting:
+
+```bash
+webhook-async config validate \
+  --hooks /etc/webhook/hooks.d/github.json \
+  --hooks /etc/webhook/hooks.d/gitlab.yaml
+```
+
+- The Web UI **Hooks** page and `GET /api/v1/hooks` list every hook from every file.
 
 ---
 

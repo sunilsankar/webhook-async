@@ -24,7 +24,7 @@ Rules:
 | Flag | Default | Description |
 |---|---|---|
 | `--config <path>` | unset | Optional TOML application configuration file. |
-| `--hooks <path>` | `hooks.json` | Repeatable JSON/YAML hook file path. |
+| `--hooks <path>` | `hooks.json` | Repeatable JSON/YAML hook file path (overrides `[server].hook_files`). |
 | `--sync` / `--async` | `sync` | Global execution mode (mutually exclusive). |
 | `--ip <addr>` | `0.0.0.0` | Bind IP address (overrides `[server].host`). |
 | `--port <port>` | `9000` | Bind port (overrides `[server].port`). |
@@ -56,6 +56,14 @@ Deferred flags (Phase 7: `--template`, `--hotreload`, `--secure`, `--cert`, `--k
 - `use_x_request_id`: boolean (default `false`).
 - `x_request_id_limit`: integer bytes (default `0` = unlimited).
 - `trust_proxy_headers`: boolean (default `false`).
+
+### Multiple Hook Files
+
+- `--hooks` is repeatable; `server.hook_files` is an array. Both accept JSON or YAML files — the format comes from the file extension (`.json`, `.yaml`, `.yml`) and is sniffed for other extensions.
+- CLI `--hooks` **overrides** `server.hook_files` entirely; the two lists are not merged. With neither set, `hooks.json` in the working directory is loaded.
+- Every hook from every file shares one ID namespace, and IDs must be unique across files — a duplicate fails startup with `duplicate hook id '<id>'`.
+- Each hook is exposed at `/{url_prefix}/{id}` and can set its own `async`, `http-methods`, `trigger-rule` and `response-message`.
+- See [Multiple Hooks](DEPLOYMENT.md#multiple-hooks) for a full example, mixed sync/async usage, and reload behavior.
 
 ### `[storage]` (Required only when async execution is enabled; SQLite active since Phase 3, Valkey/Redis active in Phase 4)
 - `backend`: `"sqlite"` | `"valkey"` | `"redis"`.

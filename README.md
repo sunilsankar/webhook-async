@@ -102,6 +102,15 @@ Response:
 refs/heads/main 05dc3f3
 ```
 
+### 5. Add More Hooks (Optional)
+`hooks.json` is an array — add as many hooks as you need, or split them across files and repeat `--hooks`:
+
+```bash
+webhook-async server --port 9000 --hooks hooks.json --hooks ci.yaml
+```
+
+Each hook is served at `/hooks/<id>` and can run in its own sync/async mode. See [Multiple Hooks](docs/DEPLOYMENT.md#multiple-hooks).
+
 ---
 
 ## License
