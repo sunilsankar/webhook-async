@@ -1389,7 +1389,7 @@ mod tests {
         assert!(!html.contains("<script>alert('xss')</script>"));
         // Verify footer content
         assert!(html.contains("webhook-async"));
-        assert!(html.contains("v1.2.0-beta"));
+        assert!(html.contains("v1.2.0"));
         assert!(html.contains("Sunil Sankar"));
         assert!(html.contains("https://github.com/sunilsankar/webhook-async"));
     }
