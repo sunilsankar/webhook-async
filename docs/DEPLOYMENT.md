@@ -1,5 +1,9 @@
 # Webhook-Async Deployment & Operations Guide
 
+<p align="center">
+  <img src="../logo/logo.png" alt="webhook-async" width="560">
+</p>
+
 A comprehensive, production-grade guide to deploying, configuring, and operating `webhook-async` across all environments.
 
 ---

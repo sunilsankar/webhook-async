@@ -33,6 +33,7 @@ use webhook_async_worker::WorkerRegistry;
 
 pub const STATIC_STYLE_CSS: &str = include_str!("../static/style.css");
 pub const STATIC_HTMX_JS: &str = include_str!("../static/htmx.min.js");
+pub const STATIC_LOGO_PNG: &[u8] = include_bytes!("../../../logo/logo.png");
 
 #[derive(Clone, Debug)]
 pub struct WebSession {
@@ -463,6 +464,10 @@ async fn handle_htmx() -> Response {
         STATIC_HTMX_JS,
     )
         .into_response()
+}
+
+async fn handle_logo() -> Response {
+    ([(header::CONTENT_TYPE, "image/png")], STATIC_LOGO_PNG).into_response()
 }
 
 async fn handle_login_page(State(state): State<WebState>, headers: HeaderMap) -> Response {
@@ -1025,6 +1030,7 @@ pub fn build_web_router(state: WebState) -> Router {
         .route("/events", get(handle_events))
         .route("/static/style.css", get(handle_style))
         .route("/static/htmx.min.js", get(handle_htmx))
+        .route("/static/logo.png", get(handle_logo))
         .with_state(state.clone());
 
     if state.path_prefix.is_empty() || state.path_prefix == "/" {
@@ -1227,8 +1233,19 @@ mod tests {
             .uri("/static/htmx.min.js")
             .body(Body::empty())
             .unwrap();
+        let res = router.clone().oneshot(req).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+
+        let req = Request::builder()
+            .uri("/static/logo.png")
+            .body(Body::empty())
+            .unwrap();
         let res = router.oneshot(req).await.unwrap();
         assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers().get(header::CONTENT_TYPE).unwrap(),
+            "image/png"
+        );
 
         if let Some(s) = storage {
             s.close().await;

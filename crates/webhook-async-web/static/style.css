@@ -60,6 +60,17 @@ header {
   gap: 0.5rem;
 }
 
+/* shortcut: one supplied raster logo; add theme-specific transparent assets if dark-mode blending needs improvement. */
+.brand-logo {
+  width: 160px;
+  height: auto;
+  display: block;
+}
+
+.login-card .brand-logo {
+  width: 220px;
+}
+
 nav {
   display: flex;
   gap: 1.25rem;
